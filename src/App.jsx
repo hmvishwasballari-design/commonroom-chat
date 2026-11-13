@@ -92,6 +92,23 @@ export default function App() {
   const listRef = useRef(null);
   const inputRef = useRef(null);
 
+  // Premium cursor spotlight tracking
+  useEffect(() => {
+    const app = document.querySelector('.chat-app');
+    if (!app) return;
+
+    const handlePointerMove = event => {
+      app.style.setProperty('--mx', `${event.clientX}px`);
+      app.style.setProperty('--my', `${event.clientY}px`);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+    };
+  }, []);
+
   useEffect(() => {
     if (listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight;

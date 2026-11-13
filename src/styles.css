@@ -889,3 +889,164 @@ button { -webkit-tap-highlight-color: transparent; }
     transition: none;
   }
 }
+
+/* ==========================================
+   COMMONROOM — PREMIUM UI/UX UPGRADE
+   Indigo / Coral / Cyan
+========================================== */
+
+.chat-app {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background-image:
+    radial-gradient(ellipse at 10% 15%, rgba(99, 102, 241, .10), transparent 35%),
+    radial-gradient(ellipse at 90% 80%, rgba(240, 138, 108, .08), transparent 35%);
+}
+
+/* Glass conversation panel */
+.conversation-panel {
+  position: relative;
+  isolation: isolate;
+  background: rgba(20, 22, 32, .55);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, .09);
+  box-shadow:
+    0 40px 120px -40px rgba(99, 102, 241, .28),
+    inset 0 1px 0 rgba(255, 255, 255, .06);
+  transition: border-color .3s ease, box-shadow .3s ease;
+}
+
+.light-mode .conversation-panel {
+  background: rgba(255, 255, 255, .78);
+  border-color: rgba(30, 41, 59, .09);
+  box-shadow: 0 30px 80px -45px rgba(99, 102, 241, .18);
+}
+
+/* Message entrance */
+.message-row {
+  animation: commonroom-message-in .45s cubic-bezier(.2, .9, .3, 1.1) both;
+}
+
+@keyframes commonroom-message-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(.975);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Message hover refinement */
+.message-row {
+  transition: transform .25s ease, background .25s ease;
+}
+
+.message-row:hover {
+  transform: translateY(-1px);
+}
+
+/* Composer focus glow */
+.composer-wrap {
+  position: relative;
+  isolation: isolate;
+  border-radius: 16px;
+  transition: box-shadow .3s ease, border-color .3s ease;
+}
+
+.composer-wrap:focus-within {
+  box-shadow:
+    0 0 0 1px rgba(99, 102, 241, .45),
+    0 0 28px rgba(99, 102, 241, .13);
+}
+
+/* Premium send button */
+.send-button {
+  position: relative;
+  overflow: hidden;
+  background-image: linear-gradient(
+    110deg,
+    #5558e9 25%,
+    #8587ff 50%,
+    #5558e9 75%
+  );
+  background-size: 220% 100%;
+  transition: transform .25s ease, box-shadow .25s ease, background-position .5s ease;
+}
+
+.send-button:not(:disabled):hover {
+  background-position: 100% 0;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px -8px rgba(99, 102, 241, .65);
+}
+
+.send-button:not(:disabled):active {
+  transform: translateY(0) scale(.97);
+}
+
+/* Tool button refinements */
+.tool-button {
+  transition: color .2s ease, background .2s ease, transform .2s ease;
+}
+
+.tool-button:hover {
+  transform: translateY(-2px);
+}
+
+/* Invite and theme controls */
+.invite-button,
+.theme-toggle,
+.profile-control,
+.more-button {
+  transition: transform .2s ease, border-color .2s ease, background .2s ease;
+}
+
+.invite-button:hover,
+.theme-toggle:hover,
+.profile-control:hover,
+.more-button:hover {
+  transform: translateY(-1px);
+}
+
+/* Soft cursor spotlight */
+.chat-app::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background: radial-gradient(
+    450px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(255, 255, 255, .045),
+    transparent 65%
+  );
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .message-row,
+  .send-button,
+  .tool-button,
+  .invite-button,
+  .theme-toggle,
+  .profile-control,
+  .more-button {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .conversation-panel {
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  .chat-app::after {
+    display: none;
+  }
+}
+
