@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import EmojiPicker, { Theme } from 'emoji-picker-react';
 import {
   AtSign, Check, Heart, MessageCircle, MoreHorizontal, Moon,
   Paperclip, Plus, Send, Smile, Sparkles, Sun, X
@@ -35,6 +36,14 @@ function Avatar({ name, size = 'normal' }) {
   );
 }
 
+function formatDateDivider(date = new Date()) {
+  return `TODAY · ${date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric'
+  }).toUpperCase()}`;
+}
+
 function formatTime(date) {
   return date.toLocaleTimeString([], {
     hour: '2-digit',
@@ -43,16 +52,29 @@ function formatTime(date) {
   });
 }
 
-function Message({ message, onLike }) {
+function Message({ message, onLike, grouped = false }) {
   return (
-    <article className="message-row">
-      <Avatar name={message.name} />
+    <article
+      className={`message-row ${grouped ? 'is-grouped' : 'is-group-start'}`}
+      data-sender={message.name.toLowerCase()}
+    >
+      <div className="message-avatar-slot">
+        {grouped
+          ? <span className="message-avatar-spacer" aria-hidden="true" />
+          : <Avatar name={message.name} />
+        }
+      </div>
+
       <div className="message-content">
-        <div className="message-heading">
-          <strong>{message.name}</strong>
-          <span>{message.time}</span>
-          {message.isNew && <span className="just-now">JUST NOW</span>}
-        </div>
+        {grouped ? (
+          <span className="message-inline-time">{message.time}</span>
+        ) : (
+          <div className="message-heading">
+            <strong>{message.name}</strong>
+            <span>{message.time}</span>
+            {message.isNew && <span className="just-now">JUST NOW</span>}
+          </div>
+        )}
 
         <div className="bubble">
           {message.text.split(/(@(?:Alan|Bob|Carol|Dean|Elin))/g).map((part, i) =>
@@ -86,38 +108,88 @@ export default function App() {
   const [mentionQuery, setMentionQuery] = useState('');
   const [sentCount, setSentCount] = useState(0);
   const [toast, setToast] = useState('');
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(
+    () => localStorage.getItem('commonroom-theme') !== 'light'
+  );
   const [profileOpen, setProfileOpen] = useState(false);
+  const [typing, setTyping] = useState(false);
 
   const listRef = useRef(null);
   const inputRef = useRef(null);
+  const appRef = useRef(null);
+  const emojiPickerRef = useRef(null);
+  const toastTimerRef = useRef(null);
+  const replyTimerRef = useRef(null);
+  const shouldAutoScrollRef = useRef(true);
 
-  // Premium cursor spotlight tracking
   useEffect(() => {
-    const app = document.querySelector('.chat-app');
-    if (!app) return;
-
-    const handlePointerMove = event => {
-      app.style.setProperty('--mx', `${event.clientX}px`);
-      app.style.setProperty('--my', `${event.clientY}px`);
+    const handleOutsideClick = event => {
+      if (
+        emojiPickerRef.current &&
+        !emojiPickerRef.current.contains(event.target)
+      ) {
+        setEmojiOpen(false);
+      }
     };
 
-    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    const handleEscape = event => {
+      if (event.key === 'Escape') {
+        setEmojiOpen(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', handleOutsideClick);
+    document.addEventListener('keydown', handleEscape);
 
     return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
+      document.removeEventListener('pointerdown', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscape);
     };
   }, []);
 
   useEffect(() => {
-    if (listRef.current) {
-      listRef.current.scrollTop = listRef.current.scrollHeight;
-    }
-  }, [messages.length]);
+    localStorage.setItem('commonroom-theme', darkMode ? 'dark' : 'light');
+  }, [darkMode]);
 
-  const showToast = (message) => {
+  useEffect(() => {
+    const app = appRef.current;
+    if (!app) return;
+
+    const handlePointerMove = event => {
+      const rect = app.getBoundingClientRect();
+      app.style.setProperty('--mx', `${event.clientX - rect.left}px`);
+      app.style.setProperty('--my', `${event.clientY - rect.top}px`);
+    };
+
+    app.addEventListener('pointermove', handlePointerMove, { passive: true });
+
+    return () => {
+      app.removeEventListener('pointermove', handlePointerMove);
+    };
+  }, []);
+
+  useEffect(() => {
+    const list = listRef.current;
+
+    if (list && shouldAutoScrollRef.current) {
+      list.scrollTo({
+        top: list.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  }, [messages.length, typing]);
+
+  useEffect(() => {
+    return () => {
+      window.clearTimeout(toastTimerRef.current);
+      window.clearTimeout(replyTimerRef.current);
+    };
+  }, []);
+
+  const showToast = message => {
     setToast(message);
-    window.setTimeout(() => setToast(''), 2200);
+    window.clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = window.setTimeout(() => setToast(''), 2200);
   };
 
   const sendMessage = () => {
@@ -143,6 +215,36 @@ export default function App() {
     setEmojiOpen(false);
     setSentCount(count => count + 1);
     inputRef.current?.focus();
+
+    window.clearTimeout(replyTimerRef.current);
+    setTyping(true);
+
+    replyTimerRef.current = window.setTimeout(() => {
+      const replies = [
+        'That sounds good! Let’s keep moving.',
+        'Nice work. I like this direction.',
+        'Agreed — that is worth exploring.',
+        'Great point! Thanks for sharing.',
+        'On it. I’ll take a closer look.'
+      ];
+
+      const teammate = PEOPLE[Math.floor(Math.random() * PEOPLE.length)];
+      const reply = replies[Math.floor(Math.random() * replies.length)];
+
+      setMessages(old => [
+        ...old,
+        {
+          id: Date.now() + Math.random(),
+          name: teammate,
+          text: reply,
+          time: formatTime(new Date()),
+          likes: 0,
+          isNew: true
+        }
+      ]);
+
+      setTyping(false);
+    }, 1500 + Math.random() * 1000);
   };
 
   const handleDraft = value => {
@@ -171,23 +273,16 @@ export default function App() {
 
   const toggleLike = id => {
     setMessages(old =>
-      old.map(message => {
-        if (message.id !== id) return message;
-
-        const liked = !message.likedByMe;
-
-        return {
-          ...message,
-          likedByMe: liked,
-          likes: Math.max(0, message.likes + (liked ? 1 : -1))
-        };
-      })
+      old.map(message =>
+        message.id === id
+          ? { ...message, likes: message.likes + 1 }
+          : message
+      )
     );
   };
 
   const addEmoji = emoji => {
     setDraft(value => `${value}${emoji}`);
-    setEmojiOpen(false);
     inputRef.current?.focus();
   };
 
@@ -205,7 +300,10 @@ export default function App() {
   );
 
   return (
-    <div className={`chat-app ${darkMode ? 'dark-mode' : 'light-mode'}`}>
+    <div
+      ref={appRef}
+      className={`chat-app ${darkMode ? 'dark-mode' : 'light-mode'}`}
+    >
       <header className="chat-topbar">
         <a href="#home" className="chat-brand">
           <span className="brand-symbol">
@@ -331,10 +429,16 @@ export default function App() {
             role="log"
             aria-label="Message thread"
             aria-live="polite"
+            onScroll={event => {
+              const element = event.currentTarget;
+              shouldAutoScrollRef.current =
+                element.scrollHeight - element.scrollTop -
+                element.clientHeight < 100;
+            }}
           >
             <div className="date-divider">
               <span />
-              <label>TODAY · MONDAY, NOVEMBER 12</label>
+              <label>{formatDateDivider()}</label>
               <span />
             </div>
 
@@ -346,14 +450,21 @@ export default function App() {
               </div>
             </div>
 
-            {messages.map(message => (
-              <Message key={message.id} message={message} onLike={toggleLike} />
+            {messages.map((message, index) => (
+              <Message
+                key={message.id}
+                message={message}
+                onLike={toggleLike}
+                grouped={index > 0 && messages[index - 1].name === message.name}
+              />
             ))}
 
-            <div className="typing-note">
-              <span className="typing-dots"><i /><i /><i /></span>
-              <span>Someone might be typing...</span>
-            </div>
+            {typing && (
+              <div className="typing-note" role="status">
+                <span className="typing-dots"><i /><i /><i /></span>
+                <span>Someone is typing...</span>
+              </div>
+            )}
           </div>
 
           <div className="composer-area">
@@ -408,7 +519,7 @@ export default function App() {
               />
 
               <div className="composer-end">
-                <div className="emoji-wrap">
+                <div className="emoji-wrap" ref={emojiPickerRef}>
                   <button
                     className={`tool-button ${emojiOpen ? 'tool-active' : ''}`}
                     aria-label="Choose emoji"
@@ -422,20 +533,32 @@ export default function App() {
                   </button>
 
                   {emojiOpen && (
-                    <div className="emoji-popover">
-                      <div className="popover-heading">
-                        A LITTLE EXPRESSION
-                        <button onClick={() => setEmojiOpen(false)} aria-label="Close emoji picker">
-                          <X size={13} />
+                    <div className="emoji-popover whatsapp-emoji-picker">
+                      <div className="emoji-picker-heading">
+                        <div>
+                          <strong>Choose an emoji</strong>
+                          <span>Select as many as you like</span>
+                        </div>
+                        <button
+                          type="button"
+                          className="emoji-picker-close"
+                          aria-label="Close emoji picker"
+                          title="Close emoji picker"
+                          onClick={() => setEmojiOpen(false)}
+                        >
+                          <X size={17} />
                         </button>
                       </div>
-                      <div className="emoji-grid">
-                        {EMOJIS.map(emoji => (
-                          <button key={emoji} onClick={() => addEmoji(emoji)}>
-                            {emoji}
-                          </button>
-                        ))}
-                      </div>
+                      <EmojiPicker
+                        onEmojiClick={emojiData => addEmoji(emojiData.emoji)}
+                        theme={darkMode ? Theme.DARK : Theme.LIGHT}
+                        width={320}
+                        height={420}
+                        searchDisabled={false}
+                        skinTonesDisabled={false}
+                        lazyLoadEmojis={true}
+                        previewConfig={{ showPreview: false }}
+                      />
                     </div>
                   )}
                 </div>
